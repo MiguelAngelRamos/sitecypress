@@ -3,28 +3,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const searchInput = document.getElementById("searchInput");
   const countUsers = document.getElementById("countUsers");
 
-  // Cargar datos desde JSON
-  fetch("assets/data/usuarios.json")
-    .then(response => response.json())
-    .then(data => {
-      renderTable(data);
+  // utils
+  const norm = (s = "") =>
+    s.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  const debounce = (fn, wait = 150) => {
+    let t;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), wait);
+    };
+  };
 
-      // Filtro en tiempo real
-      searchInput.addEventListener("input", () => {
-        const filter = searchInput.value.toLowerCase();
-        const filteredData = data.filter(user =>
-          user.nombre.toLowerCase().includes(filter) ||
-          user.rol.toLowerCase().includes(filter)
-        );
-        renderTable(filteredData);
-      });
-    })
-    .catch(error => console.error("Error cargando usuarios:", error));
-
-  // Función para renderizar tabla
+  // pintar tabla
   function renderTable(users) {
     tableBody.innerHTML = "";
-    users.forEach(user => {
+    users.forEach((user) => {
       const row = document.createElement("tr");
       row.innerHTML = `
         <td>${user.nombre}</td>
@@ -35,4 +28,25 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     countUsers.textContent = `Total de usuarios: ${users.length}`;
   }
+
+  // cargar datos
+  fetch("/assets/data/usuarios.json")
+    .then((response) => response.json())
+    .then((data) => {
+      // estado inicial estable
+      renderTable(data);
+
+      // filtro en tiempo real con debounce y normalización
+      searchInput.addEventListener(
+        "input",
+        debounce(() => {
+          const filter = norm(searchInput.value);
+          const filteredData = data.filter(
+            (user) => norm(user.nombre).includes(filter) || norm(user.rol).includes(filter)
+          );
+          renderTable(filteredData);
+        }, 150)
+      );
+    })
+    .catch((error) => console.error("Error cargando usuarios:", error));
 });
